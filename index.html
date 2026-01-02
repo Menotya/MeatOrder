@@ -854,57 +854,54 @@ function backToRegistration() {
   document.getElementById('regBlock').classList.remove('hidden');
 }
 
-function showNotification(message, type = 'info') {
-  const notification = document.getElementById('notification');
-  notification.textContent = message;
-  notification.className = 'notification';
-  notification.style.background = type === 'error' ? '#ff3b30' : 
-                                 type === 'success' ? '#4cd964' : '#2ea6ff';
-  notification.classList.remove('hidden');
-  
-  setTimeout(() => {
-    notification.classList.add('hidden');
-  }, 3000);
-}
-
-/* === ИНИЦИАЛИЗАЦИЯ === */
-document.addEventListener('DOMContentLoaded', function() {
-  if (localStorage.getItem('meatShopUserData')) {
+function sendOrder() {
+    const activeCart = cart.filter(item => item.kg > 0);
+    
+    const orderData = {
+        user: {
+            firstName: window.userData.firstName,
+            lastName: window.userData.lastName || "",
+            phone: window.userData.phone
+        },
+        cart: activeCart.map(item => ({
+            name: item.name,
+            type: item.type,
+            kg: item.kg,
+            price: item.price
+        })),
+        address: addressInput.value.trim(),
+        date: currentCalendarDate.toISOString().split('T')[0],
+        dateFormatted: formatDate(currentCalendarDate),
+        comment: document.getElementById('comment').value.trim(),
+        total: parseInt(document.getElementById('total').textContent.replace(/\s/g, ''))
+    };
+    
+    console.log('Заказ отправлен:', orderData);
+    
+    // ВАЛИДАЦИЯ JSON
     try {
-      const savedData = JSON.parse(localStorage.getItem('meatShopUserData'));
-      document.getElementById('firstName').value = savedData.firstName || '';
-      document.getElementById('lastName').value = savedData.lastName || '';
-      document.getElementById('phone').value = savedData.phone || '';
-    } catch (e) {
-      console.error('Ошибка загрузки сохраненных данных:', e);
+        const jsonString = JSON.stringify(orderData);
+        console.log('JSON строка:', jsonString);
+        
+        // Проверяем, что JSON валиден
+        JSON.parse(jsonString);
+        
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.sendData(jsonString);
+            showNotification('Заказ успешно оформлен!', 'success');
+            
+            setTimeout(() => {
+                window.Telegram.WebApp.close();
+            }, 1000);
+        } else {
+            console.error('Telegram WebApp не доступен');
+            showNotification('Ошибка: Telegram WebApp не найден', 'error');
+        }
+    } catch (error) {
+        console.error('Ошибка в JSON:', error);
+        showNotification('Ошибка формирования заказа', 'error');
     }
-  }
-  
-  ['firstName', 'lastName', 'phone'].forEach(id => {
-    document.getElementById(id).addEventListener('blur', function() {
-      const userData = {
-        firstName: document.getElementById('firstName').value,
-        lastName: document.getElementById('lastName').value,
-        phone: document.getElementById('phone').value
-      };
-      localStorage.setItem('meatShopUserData', JSON.stringify(userData));
-    });
-  });
-  
-  // Автоформатирование телефона
-  document.getElementById('phone').addEventListener('blur', function() {
-    if (validatePhone(this.value)) {
-      this.value = formatPhone(this.value);
-      this.classList.add('valid');
-      this.classList.remove('invalid');
-    }
-  });
-  
-  calcTotal();
-  updateSelectedDateDisplay();
-  renderProducts();
-  updateCommentCounter();
-});
+}
   async function sendToBot(orderData) {
     try {
         // Прямая отправка через Telegram WebApp
@@ -928,3 +925,4 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
