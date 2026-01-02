@@ -317,8 +317,6 @@ textarea {
 <div id="notification" class="hidden"></div>
 
 <script>
-console.log('Telegram WebApp доступен:', !!window.Telegram?.WebApp);
-console.log('tg переменная:', tg);
 const tg = window.Telegram.WebApp;
 tg.expand();
 tg.enableClosingConfirmation();
@@ -832,8 +830,7 @@ function sendOrder() {
     };
     
     console.log('Заказ отправлен:', orderData);
-    console.log('sendOrder вызвана');
-    console.log('tg.sendData существует:', typeof tg?.sendData);
+    
     // ВАЖНО: Отправляем через Telegram WebApp ← ЭТО РАБОТАЕТ!
     if (window.Telegram && window.Telegram.WebApp) {
         window.Telegram.WebApp.sendData(JSON.stringify(orderData));
@@ -931,6 +928,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
-
-
-
