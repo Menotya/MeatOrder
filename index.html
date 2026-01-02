@@ -826,18 +826,26 @@ function sendOrder() {
         date: currentCalendarDate.toISOString().split('T')[0],
         dateFormatted: formatDate(currentCalendarDate),
         comment: document.getElementById('comment').value.trim(),
-        total: document.getElementById('total').textContent
+        total: document.getElementById('total').textContent.replace(/\s/g, '') // Убираем пробелы для числа
     };
     
     console.log('Заказ отправлен:', orderData);
     
-    // Отправляем в бот
-    sendToBot(orderData);
+    // ВАЖНО: Отправляем через Telegram WebApp ← ЭТО РАБОТАЕТ!
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify(orderData));
+    } else {
+        console.error('Telegram WebApp не доступен');
+        showNotification('Ошибка отправки заказа', 'error');
+        return;
+    }
     
     showNotification('Заказ успешно оформлен!', 'success');
     
     setTimeout(() => {
-        tg.close();
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+        }
     }, 2000);
 }
 
@@ -920,4 +928,5 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 </body>
 </html>
+
 
