@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Заказ мяса</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="https://api-maps.yandex.ru/2.1/?apikey=YOUR_YANDEX_API_KEY&lang=ru_RU"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Inter, Arial, sans-serif;
+  background: #f4f6f8;
+}
+
+.container {
+  max-width: 480px;
+  margin: auto;
+  padding: 16px;
+}
+
+.card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.06);
+}
+
+h1,h2 { text-align:center; }
+
+input, select, button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  font-size: 16px;
+}
+
+button {
+  background: #2ea6ff;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+
+button.secondary {
+  background: #eee;
+  color: #222;
+}
+
+.product {
+  border-top: 1px solid #eee;
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input, .row select {
+  flex: 1;
+}
+
+.total {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: right;
+  margin-top: 12px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Модалки */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: .2s;
+}
+
+.overlay.active {
+  pointer-events: all;
+  opacity: 1;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  width: 90%;
+  max-width: 420px;
+}
+
+#map {
+  width: 100%;
+  height: 300px;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<div class="card" id="register">
+<h1>Данные клиента</h1>
+<input id="firstName" placeholder="Имя">
+<input id="lastName" placeholder="Фамилия">
+<input id="phone" placeholder="Телефон">
+<input id="address" placeholder="Адрес доставки">
+<button class="secondary" onclick="openMap()">Выбрать на карте</button>
+<button onclick="saveUser()">Продолжить</button>
+</div>
+
+<div class="card hidden" id="catalog">
+<h2>Каталог (цена за 5 кг)</h2>
+<div id="products"></div>
+<input type="date" id="deliveryDate">
+<div class="total">Итого: <span id="total">0</span> ₽</div>
+<button onclick="openReceipt()">Оформить заказ</button>
+</div>
+
+</div>
+
+<!-- Чек -->
+<div class="overlay" id="receiptOverlay">
+<div class="modal">
+<h2>Проверьте заказ</h2>
+<div id="receipt"></div>
+<button onclick="sendOrder()">Подтвердить</button>
+<button class="secondary" onclick="closeReceipt()">Назад</button>
+</div>
+</div>
+
+<!-- Карта -->
+<div class="overlay" id="mapOverlay">
+<div class="modal">
+<h2>Выбор адреса</h2>
+<div id="map"></div>
+<button onclick="closeMap()">Готово</button>
+</div>
+</div>
+
+<script>
+const tg = Telegram.WebApp;
+tg.expand();
+
+const productsData = [
+  {id:1,name:"Крылья",price:1200},
+  {id:2,name:"Бедра",price:1300},
+  {id:3,name:"Грудка",price:1600},
+  {id:4,name:"Филе бедра",price:1500},
+  {id:5,name:"Фарш",price:1100},
+  {id:6,name:"Суповой набор",price:900}
+];
+
+const productsDiv = document.getElementById("products");
+
+productsData.forEach(p=>{
+  productsDiv.innerHTML += `
+    <div class="product">
+      <b>${p.name}</b> (${p.price} ₽ / 5 кг)
+      <div class="row">
+        <input type="number" min="0" step="0.5" placeholder="кг" data-id="${p.id}">
+        <select data-type="${p.id}">
+          <option value="Халяль">Халяль</option>
+          <option value="Обычное">Обычное</option>
+        </select>
+      </div>
+    </div>
+  `;
+});
+
+productsDiv.addEventListener("input", calcTotal);
+
+function calcTotal(){
+  let sum=0;
+  document.querySelectorAll("[data-id]").forEach(i=>{
+    if(+i.value>0){
+      const p=productsData.find(p=>p.id==i.dataset.id);
+      sum+=(i.value/5)*p.price;
+    }
+  });
+  total.innerText=Math.round(sum);
+}
+
+/* Пользователь */
+function saveUser(){
+  if(!firstName.value||!phone.value||!address.value){
+    alert("Заполните все поля");
+    return;
+  }
+  localStorage.setItem("user",JSON.stringify({
+    firstName:firstName.value,
+    lastName:lastName.value,
+    phone:phone.value,
+    address:address.value
+  }));
+  register.classList.add("hidden");
+  catalog.classList.remove("hidden");
+}
+
+const saved=localStorage.getItem("user");
+if(saved){
+  const u=JSON.parse(saved);
+  Object.assign(window,u);
+  firstName.value=u.firstName;
+  lastName.value=u.lastName;
+  phone.value=u.phone;
+  address.value=u.address;
+  register.classList.add("hidden");
+  catalog.classList.remove("hidden");
+}
+
+/* Чек */
+function openReceipt(){
+  if(!deliveryDate.value){
+    alert("Выберите дату");
+    return;
+  }
+  let html=`<b>${firstName.value} ${lastName.value}</b><br>${phone.value}<br>${address.value}<hr>`;
+  document.querySelectorAll("[data-id]").forEach(i=>{
+    if(+i.value>0){
+      const p=productsData.find(p=>p.id==i.dataset.id);
+      const type=document.querySelector(`[data-type="${i.dataset.id}"]`).value;
+      html+=`${p.name} (${type}) — ${i.value} кг<br>`;
+    }
+  });
+  html+=`<hr><b>Итого: ${total.innerText} ₽</b>`;
+  receipt.innerHTML=html;
+  receiptOverlay.classList.add("active");
+}
+
+function closeReceipt(){
+  receiptOverlay.classList.remove("active");
+}
+
+function sendOrder(){
+  tg.sendData(JSON.stringify({receipt:receipt.innerHTML}));
+  tg.close();
+}
+
+/* Карта */
+let map, placemark;
+ymaps.ready(()=>{
+  map=new ymaps.Map("map",{center:[59.93,30.31],zoom:12});
+  map.events.add("click",e=>{
+    const coords=e.get("coords");
+    if(!placemark){
+      placemark=new ymaps.Placemark(coords);
+      map.geoObjects.add(placemark);
+    }else placemark.geometry.setCoordinates(coords);
+
+    ymaps.geocode(coords).then(res=>{
+      address.value=res.geoObjects.get(0).getAddressLine();
+    });
+  });
+});
+
+function openMap(){ mapOverlay.classList.add("active"); }
+function closeMap(){ mapOverlay.classList.remove("active"); }
+</script>
+</body>
+</html>
