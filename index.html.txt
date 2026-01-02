@@ -819,24 +819,34 @@ function closeReceiptModal() {
 }
 
 function sendOrder() {
-  const orderData = {
-    user: window.userData,
-    cart: cart.filter(item => item.kg > 0),
-    address: addressInput.value.trim(),
-    date: currentCalendarDate.toISOString().split('T')[0],
-    dateFormatted: formatDate(currentCalendarDate),
-    comment: document.getElementById('comment').value.trim(),
-    total: document.getElementById('total').textContent
-  };
-  
-  console.log('Заказ отправлен:', orderData);
-  tg.sendData(JSON.stringify(orderData));
-  
-  showNotification('Заказ успешно оформлен!', 'success');
-  
-  setTimeout(() => {
-    tg.close();
-  }, 2000);
+    const orderData = {
+        user: window.userData,
+        cart: cart.filter(item => item.kg > 0),
+        address: addressInput.value.trim(),
+        date: currentCalendarDate.toISOString().split('T')[0],
+        dateFormatted: formatDate(currentCalendarDate),
+        comment: document.getElementById('comment').value.trim(),
+        total: document.getElementById('total').textContent.replace(/\s/g, '') // Убираем пробелы для числа
+    };
+    
+    console.log('Заказ отправлен:', orderData);
+    
+    // ВАЖНО: Отправляем через Telegram WebApp ← ЭТО РАБОТАЕТ!
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.sendData(JSON.stringify(orderData));
+    } else {
+        console.error('Telegram WebApp не доступен');
+        showNotification('Ошибка отправки заказа', 'error');
+        return;
+    }
+    
+    showNotification('Заказ успешно оформлен!', 'success');
+    
+    setTimeout(() => {
+        if (window.Telegram && window.Telegram.WebApp) {
+            window.Telegram.WebApp.close();
+        }
+    }, 2000);
 }
 
 function backToRegistration() {
@@ -895,6 +905,26 @@ document.addEventListener('DOMContentLoaded', function() {
   renderProducts();
   updateCommentCounter();
 });
+  async function sendToBot(orderData) {
+    try {
+        // Прямая отправка через Telegram WebApp
+        tg.sendData(JSON.stringify(orderData));
+        
+        // Дополнительная отправка на ваш сервер для бэкапа
+        const response = await fetch('YOUR_BOT_WEBHOOK_URL', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(orderData)
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Ошибка отправки:', error);
+        return false;
+    }
+}
 </script>
 </body>
 </html>
