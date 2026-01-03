@@ -824,75 +824,30 @@ function backToRegistration() {
 }
 
 function sendOrder() {
-    const activeCart = cart.filter(item => item.kg > 0);
-    
     const orderData = {
-        user: {
-            firstName: window.userData.firstName,
-            lastName: window.userData.lastName || "",
-            phone: window.userData.phone
-        },
-        cart: activeCart.map(item => ({
-            name: item.name,
-            type: item.type,
-            kg: item.kg,
-            price: item.price
-        })),
+        user: window.userData,
+        cart: cart.filter(item => item.kg > 0),
         address: addressInput.value.trim(),
         date: currentCalendarDate.toISOString().split('T')[0],
         dateFormatted: formatDate(currentCalendarDate),
         comment: document.getElementById('comment').value.trim(),
-        total: parseInt(document.getElementById('total').textContent.replace(/\s/g, ''))
+        total: document.getElementById('total').textContent.replace(/\s/g, '')
     };
-    
-    console.log('Заказ отправлен:', orderData);
-    
-    // ВАЛИДАЦИЯ JSON
-    try {
-        const jsonString = JSON.stringify(orderData);
-        console.log('JSON строка:', jsonString);
-        
-        // Проверяем, что JSON валиден
-        JSON.parse(jsonString);
-        
-        if (window.Telegram && window.Telegram.WebApp) {
-            window.Telegram.WebApp.sendData(jsonString);
-            showNotification('Заказ успешно оформлен!', 'success');
-            
-            setTimeout(() => {
-                window.Telegram.WebApp.close();
-            }, 1000);
-        } else {
-            console.error('Telegram WebApp не доступен');
-            showNotification('Ошибка: Telegram WebApp не найден', 'error');
-        }
-    } catch (error) {
-        console.error('Ошибка в JSON:', error);
-        showNotification('Ошибка формирования заказа', 'error');
+
+    console.log("📦 Отправка заказа:", orderData);
+
+    if (!window.Telegram || !window.Telegram.WebApp) {
+        alert("Telegram WebApp недоступен");
+        return;
     }
-}
-  async function sendToBot(orderData) {
-    try {
-        // Прямая отправка через Telegram WebApp
-        tg.sendData(JSON.stringify(orderData));
-        
-        // Дополнительная отправка на ваш сервер для бэкапа
-        const response = await fetch('YOUR_BOT_WEBHOOK_URL', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(orderData)
-        });
-        
-        return true;
-    } catch (error) {
-        console.error('Ошибка отправки:', error);
-        return false;
-    }
+
+    Telegram.WebApp.sendData(JSON.stringify(orderData));
+
+    Telegram.WebApp.close();
 }
 </script>
 </body>
 </html>
+
 
 
