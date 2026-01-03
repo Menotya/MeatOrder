@@ -347,6 +347,24 @@ const cart = [];
 let addressTimeout = null;
 
 /* === УПРАВЛЕНИЕ КОЛИЧЕСТВОМ ТОВАРОВ === */
+function showNotification(message, type = 'info') {
+    const notification = document.getElementById('notification');
+    if (!notification) {
+        console.log("Уведомление: " + message);
+        return;
+    }
+    
+    notification.textContent = message;
+    notification.className = 'notification';
+    notification.style.background = type === 'error' ? '#ff3b30' : 
+                                   type === 'success' ? '#4cd964' : '#2ea6ff';
+    notification.classList.remove('hidden');
+    
+    setTimeout(() => {
+        notification.classList.add('hidden');
+    }, 3000);
+}
+  
 function changeQuantity(productId, delta) {
   const productList = currentTab === "halal" ? halalProducts : normalProducts;
   const product = productList.find(p => p.id === productId);
@@ -848,6 +866,7 @@ function sendOrder() {
 </script>
 </body>
 </html>
+
 
 
 
